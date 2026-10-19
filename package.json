@@ -1,0 +1,19 @@
+{
+  "name": "api-biblioteca",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "API simples de biblioteca com Express, Cloudflare Workers e D1",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:migrate:local": "wrangler d1 migrations apply biblioteca-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply biblioteca-db --remote"
+  },
+  "dependencies": {
+    "express": "^5.3.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.151.2"
+  }
+}

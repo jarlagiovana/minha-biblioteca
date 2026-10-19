@@ -1,0 +1,15 @@
+{
+  "name": "api-biblioteca",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-01",
+  // O Express precisa das APIs do Node.js
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "biblioteca-db"
+      // Antes do deploy, adicione aqui o ID gerado pelo "wrangler d1 create":
+      // "database_id": "COLE-AQUI-O-ID"
+    }
+  ]
+}
