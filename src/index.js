@@ -8,7 +8,7 @@ app.use(express.json());
 
 // Verifica se a API está no ar
 app.get("/health", (req, res) => {
-  res.json({ status: "ok" });
+  res.json({ status: "API-Jarla" });
 });
 
 // Lista todos os livros
