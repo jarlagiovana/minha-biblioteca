@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minha Biblioteca - Gerenciador</title>
+    <!-- Tailwind CSS para um design moderno -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 min-h-screen font-sans text-slate-800">
+
+    <div class="max-w-4xl mx-auto px-4 py-10">
+        <!-- Cabeçalho -->
+        <header class="text-center mb-10">
+            <h1 class="text-3xl font-extrabold text-blue-600">📚 Minha Biblioteca</h1>
+            <p class="text-slate-500 mt-2">Gerencie seus livros favoritos integrados ao Cloudflare Workers & D1</p>
+        </header>
+
+        <!-- Formulário de Cadastro / Edição -->
+        <div class="bg-white shadow-md rounded-xl p-6 mb-8 border border-slate-100">
+            <h2 id="form-title" class="text-xl font-bold text-slate-700 mb-4">Adicionar Novo Livro</h2>
+            <form id="livro-form" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <input type="hidden" id="livro-id">
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Título</label>
+                    <input type="text" id="titulo" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ex: Dom Casmurro">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Autor</label>
+                    <input type="text" id="autor" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ex: Machado de Assis">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Ano</label>
+                    <input type="number" id="ano" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ex: 1899">
+                </div>
+                <div class="md:col-span-3 flex gap-2 justify-end mt-2">
+                    <button type="button" id="btn-cancelar" onclick="limparFormulario()" class="hidden bg-slate-300 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-400 transition">Cancelar</button>
+                    <button type="submit" id="btn-salvar" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition font-medium">Salvar Livro</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Lista de Livros -->
+        <div class="bg-white shadow-md rounded-xl p-6 border border-slate-100">
+            <h2 class="text-xl font-bold text-slate-700 mb-4">Livros Cadastrados</h2>
+            <div id="loading" class="text-center py-6 text-slate-400">Carregando livros...</div>
+            <div class="overflow-x-auto">
+                <table id="tabela-livros" class="w-full text-left border-collapse hidden">
+                    <thead>
+                        <tr class="border-b border-slate-200 text-slate-500 text-sm">
+                            <th class="py-3 px-4">Título</th>
+                            <th class="py-3 px-4">Autor</th>
+                            <th class="py-3 px-4">Ano</th>
+                            <th class="py-3 px-4 text-right">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lista-livros" class="divide-y divide-slate-100">
+                        <!-- Preenchido via JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+            <div id="vazio" class="hidden text-center py-8 text-slate-400">Nenhum livro cadastrado ainda.</div>
+        </div>
+    </div>
+
+    <!-- Script de Integração com a API -->
+    <script>
+        // URL oficial do seu backend no Cloudflare Workers
+        const API_URL = "/api/livros";
+
+        const form = document.getElementById("livro-form");
+        const tabela = document.getElementById("tabela-livros");
+        const listaLivros = document.getElementById("lista-livros");
+        const loading = document.getElementById("loading");
+        const vazio = document.getElementById("vazio");
+        const btnCancelar = document.getElementById("btn-cancelar");
+        const btnSalvar = document.getElementById("btn-salvar");
+        const formTitle = document.getElementById("form-title");
+        const inputId = document.getElementById("livro-id");
+        const inputTitulo = document.getElementById("titulo");
+        const inputAutor = document.getElementById("autor");
+        const inputAno = document.getElementById("ano");
+
+        // 1. Buscar e Listar Livros (GET)
+        async function carregarLivros() {
+            try {
+                loading.style.display = "block";
+                tabela.classList.add("hidden");
+                vazio.classList.add("hidden");
+
+                const resposta = await fetch(API_URL);
+                const livros = await resposta.json();
+
+                loading.style.display = "none";
+
+                if (livros.length === 0) {
+                    vazio.classList.remove("hidden");
+                } else {
+                    tabela.classList.remove("hidden");
+                    listaLivros.innerHTML = "";
+                    livros.forEach(livro => {
+                        listaLivros.innerHTML += `
+                            <tr class="hover:bg-slate-50 transition">
+                                <td class="py-3 px-4 font-medium text-slate-800">${livro.titulo}</td>
+                                <td class="py-3 px-4 text-slate-600">${livro.autor}</td>
+                                <td class="py-3 px-4 text-slate-500">${livro.ano ?? '-'}</td>
+                                <td class="py-3 px-4 text-right space-x-2">
+                                    <button onclick="prepararEdicao(${livro.id}, '${livro.titulo.replace(/'/g, "\\'")}', '${livro.autor.replace(/'/g, "\\'")}', ${livro.ano ?? 'null'})" class="text-blue-600 hover:underline text-sm font-medium">Editar</button>
+                                    <button onclick="excluirLivro(${livro.id})" class="text-red-600 hover:underline text-sm font-medium">Excluir</button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
+            } catch (erro) {
+                loading.innerText = "Erro ao carregar os livros. Verifique sua conexão ou a API.";
+                console.error("Erro:", erro);
+            }
+        }
+
+        // 2. Cadastrar ou Atualizar Livro (POST / PUT)
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const id = inputId.value;
+            const dados = {
+                titulo: inputTitulo.value,
+                autor: inputAutor.value,
+                ano: inputAno.value ? parseInt(inputAno.value) : null
+            };
+
+            try {
+                let resposta;
+                if (id) {
+                    // Atualizar (PUT)
+                    resposta = await fetch(`${API_URL}/${id}`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(dados)
+                    });
+                } else {
+                    // Cadastrar (POST)
+                    resposta = await fetch(API_URL, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(dados)
+                    });
+                }
+
+                if (resposta.ok) {
+                    limparFormulario();
+                    carregarLivros();
+                } else {
+                    const erroJson = await resposta.json();
+                    alert("Erro: " + (erroJson.erro || "Não foi possível salvar"));
+                }
+            } catch (erro) {
+                console.error("Erro ao salvar:", erro);
+                alert("Erro de conexão com o servidor.");
+            }
+        });
+
+        // 3. Excluir Livro (DELETE)
+        async function excluirLivro(id) {
+            if (!confirm("Deseja realmente excluir este livro?")) return;
+
+            try {
+                const resposta = await fetch(`${API_URL}/${id}`, {
+                    method: "DELETE"
+                });
+
+                if (resposta.ok) {
+                    carregarLivros();
+                } else {
+                    alert("Erro ao excluir o livro.");
+                }
+            } catch (erro) {
+                console.error("Erro ao excluir:", erro);
+            }
+        }
+
+        // Helpers de interface
+        function prepararEdicao(id, titulo, autor, ano) {
+            inputId.value = id;
+            inputTitulo.value = titulo;
+            inputAutor.value = autor;
+            inputAno.value = (ano && ano !== 'null') ? ano : '';
+            formTitle.innerText = "Editar Livro";
+            btnSalvar.innerText = "Atualizar Livro";
+            btnCancelar.classList.remove("hidden");
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function limparFormulario() {
+            inputId.value = "";
+            inputTitulo.value = "";
+            inputAutor.value = "";
+            inputAno.value = "";
+            formTitle.innerText = "Adicionar Novo Livro";
+            btnSalvar.innerText = "Salvar Livro";
+            btnCancelar.classList.add("hidden");
+        }
+
+        // Executar ao carregar a página
+        carregarLivros();
+    </script>
+</body>
+</html>

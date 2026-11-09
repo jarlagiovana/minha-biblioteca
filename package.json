@@ -11,6 +11,7 @@
     "db:migrate:remote": "wrangler d1 migrations apply biblioteca-db --remote"
   },
   "dependencies": {
+    "cors": "^2.8.6",
     "express": "^5.3.0"
   },
   "devDependencies": {

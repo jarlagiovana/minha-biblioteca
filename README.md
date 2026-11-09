@@ -22,6 +22,15 @@ API simples de livros feita com **Express**, rodando no **Cloudflare Workers** c
 | PUT | `/api/livros/:id` | Atualiza um livro |
 | DELETE | `/api/livros/:id` | Exclui um livro |
 
+## Rate limit
+
+Cada IP pode fazer no máximo **3 requisições por minuto** (em qualquer rota). A partir da 4ª, a API responde:
+
+HTTP 429
+{"erro":"Muitas requisições. Tente novamente em 1 minuto."}
+
+O limite usa o [Rate Limiting da Cloudflare](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/) e é configurado no `wrangler.jsonc`, no bloco `ratelimits` (`limit` = quantidade, `period` = segundos; o `period` só aceita `10` ou `60`).
+
 ## 1. Rodar no seu computador
 
 Pré-requisito: [Node.js](https://nodejs.org/) 20 ou mais recente.

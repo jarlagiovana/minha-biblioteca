@@ -1,23 +1,42 @@
-// API simples de biblioteca: Express rodando no Cloudflare Workers com banco D1.
-import { env } from "cloudflare:workers"; // dá acesso ao banco D1 (env.DB)
-import { httpServerHandler } from "cloudflare:node"; // conecta o Express ao Workers
+import { env } from "cloudflare:workers";
+import { httpServerHandler } from "cloudflare:node";
 import express from "express";
+import cors from "cors";
+import path from "path";
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 
-// Verifica se a API está no ar
+// Serve os arquivos estáticos da pasta "public" na raiz do site
+const __dirname = path.resolve();
+app.use(express.static(path.join(__dirname, "public")));
+
+// --- ROTAS DA API ---
+
 app.get("/health", (req, res) => {
   res.json({ status: "API-Jarla" });
 });
 
-// Lista todos os livros
+// Rate limit: no máximo 3 requisições por minuto para cada IP.
+// O limite fica configurado no wrangler.jsonc (binding RATE_LIMITER).
+app.use(async (req, res, next) => {
+  const ip = req.get("cf-connecting-ip") ?? "desconhecido";
+  const { success } = await env.RATE_LIMITER.limit({ key: ip });
+  if (!success) {
+    res.set("Retry-After", "60");
+    return res
+      .status(429)
+      .json({ erro: "Muitas requisições. Tente novamente em 1 minuto." });
+  }
+  next();
+});
+
 app.get("/api/livros", async (req, res) => {
   const { results } = await env.DB.prepare("SELECT * FROM livros").all();
   res.json(results);
 });
 
-// Busca um livro pelo id
 app.get("/api/livros/:id", async (req, res) => {
   const livro = await env.DB.prepare("SELECT * FROM livros WHERE id = ?")
     .bind(req.params.id)
@@ -27,7 +46,6 @@ app.get("/api/livros/:id", async (req, res) => {
   res.json(livro);
 });
 
-// Cadastra um livro
 app.post("/api/livros", async (req, res) => {
   const { titulo, autor, ano } = req.body ?? {};
   if (!titulo || !autor) {
@@ -43,7 +61,6 @@ app.post("/api/livros", async (req, res) => {
   res.status(201).json(livro);
 });
 
-// Atualiza um livro
 app.put("/api/livros/:id", async (req, res) => {
   const { titulo, autor, ano } = req.body ?? {};
   if (!titulo || !autor) {
@@ -60,7 +77,6 @@ app.put("/api/livros/:id", async (req, res) => {
   res.json(livro);
 });
 
-// Exclui um livro
 app.delete("/api/livros/:id", async (req, res) => {
   const resultado = await env.DB.prepare("DELETE FROM livros WHERE id = ?")
     .bind(req.params.id)
@@ -72,7 +88,7 @@ app.delete("/api/livros/:id", async (req, res) => {
   res.json({ mensagem: "Livro excluído" });
 });
 
-// Qualquer erro inesperado cai aqui
+// Tratamento de erros
 app.use((erro, req, res, next) => {
   if (erro.type === "entity.parse.failed") {
     return res.status(400).json({ erro: "JSON inválido" });
@@ -81,7 +97,5 @@ app.use((erro, req, res, next) => {
   res.status(500).json({ erro: "Erro interno do servidor" });
 });
 
-// No Workers não existe servidor real: o httpServerHandler entrega as
-// requisições ao Express que "escuta" nesta porta.
 app.listen(3000);
 export default httpServerHandler({ port: 3000 });
